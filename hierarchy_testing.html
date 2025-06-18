@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Hierarchy Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-blue: #0d2344;
+            --accent-cyan: #00bcf2;
+            --light-gray: #f8f9fa;
+            --medium-gray: #e9ecef;
+            --dark-gray: #495057;
+            --text-color: #212529;
+            --white: #ffffff;
+            --border-radius: 6px;
+            --highlight-bg: #e0f7ff;
+            --added-bg: #d4edda; /* Green for additions */
+            --removed-bg: #f8d7da; /* Red for removals */
+            --added-border: #28a745; /* Darker green for added border */
+            --removed-border: #dc3545; /* Darker red for removed border */
+            --success-bg: #d4edda; /* Green for success message */
+            --success-border: #28a745; /* Darker green for success */
+        }
+
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; 
+            padding: 2rem; 
+            background-color: var(--light-gray); 
+            color: var(--text-color); 
+        }
+
+        .container { 
+            max-width: 900px; 
+            margin: auto; 
+            background: var(--white); 
+            padding: 2rem 2.5rem; 
+            border-radius: var(--border-radius); 
+            box-shadow: 0 8px 30px rgba(0,0,0,0.08); 
+        }
+
+        h1 { 
+            color: var(--primary-blue); 
+            text-align: center;
+            font-weight: 700;
+        }
+
+        h2 { 
+            color: var(--primary-blue); 
+            font-weight: 600;
+            margin-top: 2rem;
+        }
+
+        p { 
+            text-align: center; 
+            color: var(--dark-gray); 
+            margin-bottom: 2.5rem; 
+        }
+
+        .input-group { 
+            display: flex; 
+            flex-wrap: wrap;
+            gap: 1rem; 
+            margin-bottom: 1.5rem; 
+        }
+
+        input[type="text"], textarea { 
+            flex: 1 1 200px;
+            padding: 0.75rem 1rem; 
+            border: 1px solid #ced4da; 
+            border-radius: var(--border-radius); 
+            font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 188, 242, 0.2);
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        #generateBtn, #submitFeedbackBtn, #approveBtn { 
+            flex-basis: 100%;
+            padding: 0.75rem 1.5rem; 
+            border: none; 
+            background-color: var(--accent-cyan); 
+            color: var(--white); 
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: var(--border-radius); 
+            cursor: pointer; 
+            transition: background-color 0.3s, transform 0.1s; 
+        }
+
+        @media (min-width: 768px) {
+            #generateBtn, #submitFeedbackBtn, #approveBtn {
+                flex-basis: auto;
+            }
+        }
+
+        #generateBtn:hover, #submitFeedbackBtn:hover, #approveBtn:hover { 
+            background-color: #00a8d9;
+        }
+        #generateBtn:active, #submitFeedbackBtn:active, #approveBtn:active {
+            transform: translateY(1px);
+        }
+
+        #results, #tree-container { 
+            margin-top: 1rem; 
+            overflow-x: auto; 
+        }
+
+        .loader { 
+            text-align: center; 
+            font-style: italic; 
+            color: var(--dark-gray); 
+            display: none; 
+            margin-bottom: 1rem; 
+        }
+
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 1em; 
+            font-size: 0.95em; 
+        }
+
+        th, td { 
+            border: 1px solid var(--medium-gray); 
+            padding: 12px 15px; 
+            text-align: left; 
+            vertical-align: top; 
+        }
+
+        thead th { 
+            background-color: var(--accent-cyan); 
+            color: var(--white); 
+            font-weight: 600; 
+            position: sticky; 
+            top: 0; 
+        }
+
+        tbody tr:nth-child(even) { 
+            background-color: var(--light-gray); 
+        }
+        tbody tr:hover { 
+            background-color: #e0f7ff;
+        }
+
+        .error-message { 
+            color: #D32F2F; 
+            background-color: #FFEBEE; 
+            border: 1px solid #D32F2F; 
+            padding: 1rem; 
+            border-radius: var(--border-radius); 
+            white-space: pre-wrap; 
+            word-wrap: break-word;
+            margin-bottom: 1rem;
+            position: relative;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .error-message .dismiss-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: #D32F2F;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .error-message .dismiss-btn:hover {
+            color: #b71c1c;
+        }
+
+        .success-message {
+            color: #155724;
+            background-color: var(--success-bg);
+            border: 1px solid var(--success-border);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 1rem;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in forwards;
+        }
+
+        .view-toggle {
+            text-align: center;
+            margin-bottom: 1rem;
+            display: none;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+        }
+        .view-toggle button {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+            background-color: transparent;
+            color: var(--primary-blue);
+            border: 1px solid var(--medium-gray);
+            margin: 5px;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .view-toggle button:hover {
+            background-color: var(--medium-gray);
+        }
+        .view-toggle button.active { 
+            background-color: var(--primary-blue); 
+            color: var(--white); 
+            border-color: var(--primary-blue);
+        }
+        
+        #downloadBtn, #approveBtn {
+            line-height: 0;
+            padding: 0.6rem;
+        }
+        #downloadBtn svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+        }
+        
+        #tree-container { 
+            font-size: 0.95em; 
+        }
+        #tree-container ul { 
+            list-style-type: none; 
+            padding-left: 20px; 
+            position: relative; 
+        }
+        #tree-container ul ul { 
+            margin-left: 15px; 
+        }
+        #tree-container li { 
+            margin: 10px 0; 
+            position: relative; 
+            padding-left: 25px; 
+        }
+        
+        #tree-container li::before, #tree-container li::after { 
+            content: ''; 
+            position: absolute; 
+            left: 0; 
+            border-color: var(--medium-gray);
+        }
+        #tree-container li::before { 
+            border-left: 1px solid var(--medium-gray); 
+            height: 100%; 
+            top: 0; 
+            width: 1px; 
+        }
+        #tree-container li:last-child::before { 
+            height: 22px; 
+        }
+        #tree-container li::after { 
+            border-top: 1px solid var(--medium-gray); 
+            height: 1px; 
+            top: 22px; 
+            width: 20px; 
+        }
+        
+        .tree-node { 
+            background-color: #f8f9fa;
+            padding: 8px 12px; 
+            border-radius: var(--border-radius); 
+            border: 1px solid var(--medium-gray); 
+            display: inline-block; 
+            transition: all 0.2s;
+        }
+        .tree-node strong { 
+            color: var(--primary-blue);
+            font-weight: 600;
+        }
+        .tree-node .badge { 
+            background-color: var(--accent-cyan); 
+            color: var(--white); 
+            padding: 3px 8px; 
+            font-size: 0.75em; 
+            border-radius: 10px; 
+            font-weight: bold; 
+            display: inline-block; 
+            margin-left: 8px; 
+            vertical-align: middle; 
+        }
+        .tree-node .tree-location { 
+            display: block; 
+            font-style: italic; 
+            color: var(--dark-gray); 
+            font-size: 0.9em; 
+            margin-top: 4px; 
+        }
+        
+        .highlighted-row {
+            background-color: var(--highlight-bg) !important;
+            font-weight: 700;
+        }
+        .highlighted-row td {
+            color: var(--primary-blue);
+        }
+
+        .added-row {
+            background-color: var(--added-bg) !important;
+            border: 1px solid var(--added-border) !important;
+        }
+
+        .removed-row {
+            background-color: var(--removed-bg) !important;
+            border: 1px solid var(--removed-border) !important;
+            text-decoration: line-through;
+        }
+
+        .highlighted-node {
+            border-color: var(--primary-blue) !important;
+            background-color: var(--highlight-bg) !important;
+            box-shadow: 0 0 8px rgba(13, 35, 68, 0.3);
+            border-width: 2px;
+        }
+
+        .added-node {
+            background-color: var(--added-bg) !important;
+            border: 1px solid var(--added-border) !important;
+        }
+
+        .removed-node {
+            background-color: var(--removed-bg) !important;
+            border: 1px solid var(--removed-border) !important;
+            text-decoration: line-through;
+        }
+
+        #feedback-section {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        #updated-results, #updated-tree-container {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🏢 Company Hierarchy Generator</h1>
+        <p>Enter an entity and its location. The generator will find the parent company and build the hierarchy, highlighting your entry.</p>
+        
+        <div class="input-group">
+            <input type="text" id="entityName" placeholder="Entity Name (e.g., Anixter, Amazon India)">
+            <input type="text" id="entityLocation" placeholder="Location (e.g., Bengaluru, India)">
+        </div>
+        <div class="input-group">
+             <button id="generateBtn">Generate Hierarchy</button>
+        </div>
+
+        <div id="loader" class="loader">Loading...</div>
+        
+        <div class="view-toggle">
+            <button id="tableViewBtn" class="active">Table View</button>
+            <button id="treeViewBtn">Tree View</button>
+            <button id="downloadBtn" title="Download CSV">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </button>
+            <button id="approveBtn" title="Approve Hierarchy" style="display: none;">Approve</button>
+        </div>
+
+        <div id="results">
+            <div id="messageContainer" class="messageContainer"></div>
+            <div id="tableContainer"></div>
+        </div>
+        <div id="tree-container" style="display: none;">
+            <div id="messageContainer2" class="messageContainer"></div>
+            <div id="treeContent"></div>
+        </div>
+
+        <div id="feedback-section">
+            <h2>Provide Feedback</h2>
+            <p>Enter feedback to refine the hierarchy (e.g., 'Add all Amazon companies in Spain' or 'Set Vallen Distribution Inc as its own L0 company').</p>
+            <div class="input-group">
+                <textarea id="feedbackInput" placeholder="Enter your feedback (e.g., 'Add all Amazon companies in Spain')"></textarea>
+            </div>
+            <div class="input-group">
+                <button id="submitFeedbackBtn">Submit Feedback</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = "AIzaSyB7PvnCQ1wAsmQTJQR5AFMJ6RdvLNbznSU";
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+        
+        let hierarchyData = [];
+        let feedbackChanges = { added: [], removed: [] };
+        let entityName = '';
+        let entityLocation = '';
+        let l0CompanyName = '';
+
+        // Function to display errors in the UI
+        function displayError(message, context = '') {
+            const messageContainers = document.getElementsByClassName('messageContainer');
+            const resultsDiv = document.getElementById('results');
+            const treeDiv = document.getElementById('tree-container');
+            const loader = document.getElementById('loader');
+            const feedbackSection = document.getElementById('feedback-section');
+
+            // Hide loader and show feedback section if applicable
+            loader.style.display = 'none';
+            feedbackSection.style.display = 'block';
+
+            // Clear existing messages and display new error in both views
+            Array.from(messageContainers).forEach(container => {
+                container.innerHTML = ''; // Clear any existing messages
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.innerHTML = `<strong>Error:</strong> ${message}<button class="dismiss-btn" onclick="this.parentElement.remove()">✕</button>`;
+                container.appendChild(errorDiv);
+            });
+            console.error(`Error displayed in UI: ${message}`, context ? { context } : {});
+            (resultsDiv.style.display !== 'none' ? resultsDiv : treeDiv).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Function to display success messages in the UI
+        function displaySuccess(message) {
+            const messageContainers = document.getElementsByClassName('messageContainer');
+            const resultsDiv = document.getElementById('results');
+            const treeDiv = document.getElementById('tree-container');
+            Array.from(messageContainers).forEach(container => {
+                container.innerHTML = ''; // Clear any existing messages
+                const successDiv = document.createElement('div');
+                successDiv.className = 'success-message';
+                successDiv.innerHTML = `<strong>Success:</strong> ${message}`;
+                container.appendChild(successDiv);
+            });
+            (resultsDiv.style.display !== 'none' ? resultsDiv : treeDiv).scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Global error handlers
+        window.onerror = function (message, source, lineno, colno, error) {
+            displayError(`An unexpected error occurred: ${message} at ${source}:${lineno}:${colno}`, error);
+            return true; // Prevent default browser error handling
+        };
+
+        window.addEventListener('unhandledrejection', function (event) {
+            const reason = event.reason;
+            displayError(`An unhandled promise rejection occurred: ${reason.message || reason}`, reason.stack || reason);
+            event.preventDefault(); // Prevent default browser rejection handling
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('generateBtn').addEventListener('click', () => {
+                getCompanyHierarchy().catch(err => {
+                    displayError(`Failed to generate hierarchy: ${err.message}`, err);
+                });
+            });
+            document.getElementById('submitFeedbackBtn').addEventListener('click', () => {
+                handleFeedback().catch(err => {
+                    displayError(`Failed to process feedback: ${err.message}`, err);
+                });
+            });
+            document.getElementById('downloadBtn').addEventListener('click', downloadCSV);
+            document.getElementById('approveBtn').addEventListener('click', handleApprove);
+
+            const tableViewBtn = document.getElementById('tableViewBtn');
+            const treeViewBtn = document.getElementById('treeViewBtn');
+            const tableContainer = document.getElementById('results');
+            const treeContainer = document.getElementById('tree-container');
+
+            tableViewBtn.addEventListener('click', () => {
+                console.log('Table view clicked');
+                tableContainer.style.display = 'block';
+                treeContainer.style.display = 'none';
+                tableViewBtn.classList.add('active');
+                treeViewBtn.classList.remove('active');
+            });
+
+            treeViewBtn.addEventListener('click', () => {
+                console.log('Tree view clicked');
+                tableContainer.style.display = 'none';
+                treeContainer.style.display = 'block';
+                treeViewBtn.classList.add('active');
+                tableViewBtn.classList.remove('active');
+            });
+        });
+
+        async function makeApiCall(promptText) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: promptText }] }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            temperature: 0.0,
+                            maxOutputTokens: 16384, // Increased to handle larger responses
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("API Error Response Text:", errorText);
+                    let errorMessage = `API request failed with status ${response.status}.`;
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.error.message || errorMessage;
+                    } catch (e) {
+                        console.warn("Could not parse API error response as JSON:", e);
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const data = await response.json();
+                
+                if (!data.candidates || data.candidates.length === 0 || !data.candidates[0].content || !data.candidates[0].content.parts || data.candidates[0].content.parts.length === 0) {
+                    console.error("Invalid API Response Structure:", JSON.stringify(data, null, 2));
+                    throw new Error("API response is missing expected data. The request may have been blocked or returned an empty response.");
+                }
+
+                const rawText = data.candidates[0].content.parts[0].text;
+                console.log("Raw text from API received:", rawText);
+
+                let jsonString = "";
+                
+                const markdownJsonStart = rawText.indexOf('```json');
+                const markdownEnd = rawText.lastIndexOf('```');
+
+                if (markdownJsonStart !== -1 && markdownEnd > markdownJsonStart) {
+                    jsonString = rawText.substring(markdownJsonStart + 7, markdownEnd).trim();
+                } else {
+                    const firstBracket = rawText.indexOf('[');
+                    const firstBrace = rawText.indexOf('{');
+                    
+                    let startIndex = -1;
+                    
+                    if (firstBracket === -1 && firstBrace === -1) {
+                        throw new Error(`Could not find a valid JSON object or array in the API response.`);
+                    }
+                    
+                    if (firstBracket === -1) {
+                        startIndex = firstBrace;
+                    } else if (firstBrace === -1) {
+                        startIndex = firstBracket;
+                    } else {
+                        startIndex = Math.min(firstBracket, firstBrace);
+                    }
+
+                    const lastBracket = rawText.lastIndexOf(']');
+                    const lastBrace = rawText.lastIndexOf('}');
+                    const endIndex = Math.max(lastBracket, lastBrace);
+                    
+                    if (endIndex > startIndex) {
+                        jsonString = rawText.substring(startIndex, endIndex + 1);
+                    } else {
+                        throw new Error(`Could not properly extract JSON from the response.`);
+                    }
+                }
+
+                try {
+                    return JSON.parse(jsonString);
+                } catch (e) {
+                    console.error("Partial JSON detected, attempting recovery:", jsonString, e);
+                    let lastValidIndex = jsonString.lastIndexOf('},');
+                    if (lastValidIndex === -1) lastValidIndex = jsonString.lastIndexOf('}');
+                    if (lastValidIndex !== -1) {
+                        const recoveredJson = '[' + jsonString.substring(0, lastValidIndex + 1) + ']';
+                        console.log("Recovered JSON:", recoveredJson);
+                        return JSON.parse(recoveredJson);
+                    }
+                    throw e;
+                }
+
+            } catch (error) {
+                console.error("API Call or Parsing Error:", error);
+                throw error; // Re-throw to let the caller handle displaying the error
+            }
+        }
+
+        async function getCompanyHierarchy() {
+            try {
+                const entityNameInput = document.getElementById('entityName').value.trim();
+                const entityLocationInput = document.getElementById('entityLocation').value.trim();
+
+                if (!entityNameInput || !entityLocationInput) {
+                    throw new Error("Please enter both an entity name and a location.");
+                }
+
+                entityName = entityNameInput;
+                entityLocation = entityLocationInput;
+
+                const resultsDiv = document.getElementById('results');
+                const messageContainers = document.getElementsByClassName('messageContainer');
+                const tableContainer = document.getElementById('tableContainer');
+                const treeDiv = document.getElementById('tree-container');
+                const treeContent = document.getElementById('treeContent');
+                const loader = document.getElementById('loader');
+                const viewToggle = document.querySelector('.view-toggle');
+                const feedbackSection = document.getElementById('feedback-section');
+                const approveBtn = document.getElementById('approveBtn');
+                
+                loader.style.display = 'block';
+                loader.textContent = 'Generating hierarchy...';
+                viewToggle.style.display = 'none';
+                feedbackSection.style.display = 'none';
+                approveBtn.style.display = 'none';
+                Array.from(messageContainers).forEach(container => container.innerHTML = '');
+                tableContainer.innerHTML = '';
+                treeContent.innerHTML = '';
+                hierarchyData = [];
+                feedbackChanges = { added: [], removed: [] };
+                l0CompanyName = '';
+
+                loader.textContent = 'Step 1 of 4: Identifying parent company...';
+                const l0FinderPrompt = `
+                  You are a corporate structure expert tasked with identifying the ultimate L0 parent company for a given entity. The L0 parent is the top-level public corporation, group, or independent entity that owns or represents the entity in question. Follow these strict rules to ensure accuracy:
+
+                  ### Rules for L0 Identification:
+                  1. **Check for Independence**:
+                     - If the entity is independent, employee-owned, or part of a cooperative structure, it should be its own L0 parent company. Do not assume a parent unless there is clear evidence of ownership.
+                     - Example: Graybar Electric Company is an employee-owned company and should be its own L0 parent, not a subsidiary of another company like WESCO International, Inc.
+                  2. **Verify Ownership**:
+                     - Only identify a parent company if there is clear evidence of ownership, such as an acquisition, merger, or public subsidiary status as of June 2025.
+                     - Avoid assuming a parent based on industry overlap or partnerships. For example, Graybar and WESCO International, Inc. are both in the electrical distribution industry, but Graybar is independent and not owned by WESCO.
+                  3. **Use Location for Context**:
+                     - Use the provided location to confirm the entity's identity and ownership structure. Normalize the location name using these mappings:
+                       - "USA" or "United States" or "U.S.A." → "US"
+                       - "United Kingdom" → "UK"
+                       - "India" → "IN"
+                       - "China" → "CN"
+                       - "Japan" → "JP"
+                       - Other country names should remain as provided unless a standard two-letter code is commonly used.
+                     - For example, if the location is "United States", normalize it to "US".
+                  4. **Handle Name Variants**:
+                     - Normalize entity names to account for typos or variations (e.g., "Greybar" should be treated as "Graybar Electric Company").
+                  5. **Default to Entity Itself if Uncertain**:
+                     - If no clear parent is found or the entity appears to be independent, return the entity itself as the L0 parent.
+
+                  ### Task:
+                  Based on the entity "${entityName}" located in "${entityLocation}", identify its ultimate L0 parent company (the top-level public corporation, group, or independent entity).
+                  
+                  Respond with ONLY a single, valid JSON object with one key, "l0_company_name".
+                  
+                  ### Examples:
+                  - Input: "Anixter, Glenview, IL, USA"
+                  - Output: { "l0_company_name": "WESCO International, Inc." }
+                  - Input: "Amazon India, Bengaluru, India"
+                  - Output: { "l0_company_name": "Amazon, Inc." }
+                  - Input: "Greybar, St. Louis, United States"
+                  - Output: { "l0_company_name": "Graybar Electric Company" }
+                `;
+                const l0Result = await makeApiCall(l0FinderPrompt);
+                if (!l0Result || !l0Result.l0_company_name) {
+                    throw new Error("Could not identify a parent company for the provided entity. Please try a different entity.");
+                }
+                l0CompanyName = l0Result.l0_company_name;
+
+                loader.textContent = 'Step 2 of 4: Generating initial hierarchy...';
+                const scoutPrompt = `
+                    You are a world-class business analyst AI. Your primary function is to meticulously map the complete corporate structure of a given company. Your results MUST be maximally comprehensive and granular.
+
+                    ### HIERARCHY DEFINITIONS (Strict)
+                    - **L0 (Company):** The top‐level brand or group name.
+                    - **L1 (Global):** The ultimate parent company, a major international joint venture, or a distinct global brand/division.
+                    - **L2 (Domestic):** The highest-level legal entity within one country or a major region.
+                    - **L3 (Parent):** A regional/functional head office, a specific manufacturing plant, or a major subsidiary.
+                    - **L4 (Child / Leaf Node):** The most granular level. This includes specific local branches, operational units, sales offices, R&D centers, or even uniquely identified sites (e.g., "Amazon Fulfillment Center - Madrid"). This is the "leaf node" level you must strive to uncover.
+
+                    ---
+                    ### GROUND TRUTH EXAMPLES
+                    These examples are non-negotiable models of the logic you must replicate.
+
+                    #### GROUND TRUTH 1: Hyundai Motor Group (For JVs and Structure)
+                    [
+                        { "level": "L0", "entityName": "Hyundai Motor Group", "location": "Global", "mappedParent": "N/A" },
+                        { "level": "L1", "entityName": "Hyundai Motor Company", "location": "Seoul, South Korea", "mappedParent": "Hyundai Motor Group (L0)" },
+                        { "level": "L1", "entityName": "Beijing Hyundai Motor Company", "location": "Beijing, China", "mappedParent": "Hyundai Motor Group (L0)" },
+                        { "level": "L2", "entityName": "Hyundai Motor Americas", "location": "Valley, US", "mappedParent": "Hyundai Motor Company (L1)" },
+                        { "level": "L2", "entityName": "Hyundai Motor Group (China) Ltd", "location": "Beijing, China", "mappedParent": "Hyundai Motor Company (L1)" },
+                        { "level": "L3", "entityName": "Hyundai Motor Manufacturing Alabama LLC", "location": "Montgomery, US", "mappedParent": "Hyundai Motor Americas (L2)" },
+                        { "level": "L3", "entityName": "Hyundai Motor Technology & Engineering Center (China) Ltd", "location": "Shandong, China", "mappedParent": "Hyundai Motor Group (China) Ltd (L2)" },
+                        { "level": "L4", "entityName": "Hyundai Mobis of Alabama", "location": "Montgomery, US", "mappedParent": "Hyundai Motor Manufacturing Alabama LLC (L3)" },
+                        { "level": "L4", "entityName": "Hyundai Motor Company R&D Center (China) Ltd", "location": "Shanghai, China", "mappedParent": "Hyundai Motor Technology & Engineering Center (China) Ltd (L3)" }
+                    ]
+
+                    #### GROUND TRUTH 2: "CARLTON BATES" Logic (For Granularity)
+                    - **RULE:** If a parent has 20 children, list all 20. Do not aggregate. This is the model for L4 comprehensiveness.
+
+                    #### GROUND TRUTH 3: "HP Inc." Logic (For Brand Divisions)
+                    - **RULE:** A single L0 can have multiple, distinct L1 entities.
+
+                    #### GROUND TRUTH 4: "WESCO" Logic (For Acquisitions)
+                    - **RULE:** For a company like WESCO, acquired company hierarchies (like EECOL) must also be included and mapped correctly.
+
+                    ---
+                    ### HIERARCHY GENERATION RULES
+
+                    #### 1. THE NON-NEGOTIABLE HIERARCHY RULE (Applies to L1-L3)
+                    For **every single entity** you identify at levels L1, L2, and L3, you **MUST** treat it as a potential parent and perform an exhaustive search for its children. Do not terminate a branch prematurely.
+
+                    #### 2. THE L4 DEEP DIVE RULE (Most Critical for Comprehensiveness)
+                    When you identify an **L3 entity** you must perform a final, focused "deep dive" search for its L4 children (operational units, local branches, specific sites), limiting to a maximum of 10 entities per L3 unless explicitly required by the target entity.
+
+                    #### 3. THE THUMB RULE (Hierarchy Integrity)
+                    The parent-child relationships must be strictly sequential: L0 is the parent of L1, L1 of L2, L2 of L3, and L3 of L4. An L1 cannot be the direct parent of an L3.
+
+                    ---
+                    ### YOUR TASK
+                    For the company "${l0CompanyName}", generate the most comprehensive hierarchy possible by applying ALL rules and ground truth logic.
+                    
+                    **Internal Thought Process:**
+                    1. Identify L0.
+                    2. Find all L1s (brands, parent companies, major JVs, key acquisitions).
+                    3. For EACH L1, find all its L2 children.
+                    3. For EACH L2, find all its L3 children (covering all countries and regions).
+                    4. **L4 Deep Dive:** For EACH L3 found, apply the "L4 DEEP DIVE RULE" and relentlessly search for all its specific L4 children.
+                    5. Assemble the complete, ultra-granular list into the final JSON.
+
+                    ### FINAL OUTPUT INSTRUCTIONS
+                    Your entire response MUST BE a single JSON Array. Each object must have these keys: "level", "entityName", "location", "mappedParent". Do not output any other text.
+                `;
+                const initialData = await makeApiCall(scoutPrompt);
+                if (!initialData) {
+                    throw new Error("Failed to generate initial hierarchy.");
+                }
+
+                loader.textContent = 'Step 3 of 4: Expanding results and filling gaps...';
+                const parentStrings = new Set(initialData.map(item => `${item.entityName} (${item.level})`));
+                const targetsForExpansion = initialData.filter(item => {
+                    const entityString = `${item.entityName} (${item.level})`;
+                    return !parentStrings.has(entityString) && (item.level === 'L2' || item.level === 'L3');
+                });
+                
+                let generatedHierarchy = initialData;
+
+                if (targetsForExpansion.length > 0) {
+                    const expanderPrompt = `
+                        You are a hierarchy expansion specialist. Your sole mission is to find and list all direct children for a given list of parent entities that are missing them.
+
+                        YOUR TARGETS FOR EXPANSION:
+                        ${targetsForExpansion.map(t => `- ${t.entityName} (${t.level})`).join('\n')}
+
+                        ### CRITICAL EXPANSION RULES
+                        1.  **Exhaustive Search:** For EACH of the "TARGETS" listed above, perform an exhaustive, global deep-dive search for their direct children (these will likely be L3s or L4s).
+                        2.  **Apply Granularity Logic:** The children you find must be specific and granular. Remember the "CARLTON BATES" logic: list all children, even those with numbers or location codes in their names.
+                        3.  **Global Scope:** For each target, consider all possible countries and regions. A target like "WESCO Americas (L2)" could have children in the US, Canada, Mexico, etc.
+                        4.  **Maximum Search:** Its highly important to add all possible entities at every level. Ensure maximum number of children for every entity, up to 10 per L3 unless specified.
+                        
+                        ### OUTPUT INSTRUCTIONS
+                        - Return a single JSON array containing ONLY THE NEWLY FOUND CHILDREN.
+                        - Each object must have keys: "level", "entityName", "location", "mappedParent". The "mappedParent" must match the target entity string exactly (e.g., "HP US Manufacturing (L3)").
+                        - If you find no new children after a thorough search, return an empty array [].
+                        - DO NOT return the original targets.
+                        - Both original as well as acquired companies should be extended as much as possible.
+                    `;
+                    const newChildren = await makeApiCall(expanderPrompt);
+                    if (newChildren) {
+                        generatedHierarchy = initialData.concat(newChildren);
+                    }
+                }
+
+                loader.textContent = 'Step 4 of 4: Verifying and highlighting your entry...';
+                const validatorPrompt = `
+                    You are a data validation and enhancement AI. Below is a JSON array representing a company hierarchy and a "target entity".
+                    
+                    Your task is to return a modified version of the complete JSON array that meets these two requirements:
+                    1.  Find the object in the array that most closely matches the "target entity". Add a new key-value pair to that specific object: "highlight": true.
+                    2.  If, after a thorough check, the "target entity" is NOT present in the JSON array, you MUST perform a full "Contextual Hierarchy Injection":
+                        a. **Trace and Inject Parents:** Identify the direct parent of the target entity. If that parent is also missing, find *its* parent, and so on, until you reach an existing entity in the hierarchy. Add all these missing parents.
+                        b. **Inject Target Entity:** Insert the target entity itself, ensure its 'mappedParent' is correct, and add "highlight": true to it.
+                        c. **Expand Surrounding Context:** For the newly added target entity AND for each of its newly added parents, you must build out their context:
+                            i. **Find and Add Siblings:** Perform an exhaustive search for all their *other* direct children (i.e., the siblings of the target and the siblings of its parents) and add them to the hierarchy.
+                            ii. **Expand All Children Deeply:** For every child entity you've just added (the target, its children, and all its siblings), you must perform a recursive "deep dive" search for *their* children down to the most granular L4 level. Ensure every branch in this newly injected context is fully expanded.
+
+                    **Note**: Add more hierarchy elements related to the country of the target entity. Add country-specific entities from L1 to L4.
+                    
+                    Return ONLY the final, complete, and valid JSON array. Do not add any other text. Ensure to add as many entities as possible for every level related to the target entity.
+
+                    ### HIERARCHY DATA:
+                    ${JSON.stringify(generatedHierarchy)}
+
+                    ### TARGET ENTITY:
+                    - Name: "${entityName}"
+                    - Location: "${entityLocation}"
+                `;
+                const finalHierarchy = await makeApiCall(validatorPrompt);
+                if (!finalHierarchy) {
+                    throw new Error("Failed to validate and highlight the hierarchy.");
+                }
+
+                hierarchyData = finalHierarchy;
+                console.log('Rendering initial hierarchy:', hierarchyData);
+                renderGroupedTable(tableContainer);
+                renderTree(hierarchyData, treeContent);
+                loader.style.display = 'none';
+                viewToggle.style.display = 'flex';
+                feedbackSection.style.display = 'block';
+                approveBtn.style.display = 'inline-block'; // Show approve button after initial generation
+                resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (error) {
+                console.error("Error in getCompanyHierarchy:", error);
+                displayError(`Failed to generate hierarchy: ${error.message}`, error);
+            }
+        }
+
+        async function handleFeedback() {
+            try {
+                const feedback = document.getElementById('feedbackInput').value.trim();
+                const loader = document.getElementById('loader');
+                const resultsDiv = document.getElementById('results');
+                const messageContainers = document.getElementsByClassName('messageContainer');
+                const tableContainer = document.getElementById('tableContainer');
+                const treeDiv = document.getElementById('tree-container');
+                const treeContent = document.getElementById('treeContent');
+                const viewToggle = document.querySelector('.view-toggle');
+                const tableViewBtn = document.getElementById('tableViewBtn');
+                const approveBtn = document.getElementById('approveBtn');
+                const feedbackSection = document.getElementById('feedback-section');
+
+                // Clear previous messages and content
+                Array.from(messageContainers).forEach(container => container.innerHTML = '');
+                tableContainer.innerHTML = '';
+                treeContent.innerHTML = '';
+
+                if (!feedback) {
+                    throw new Error("Please enter feedback before submitting.");
+                }
+
+                loader.style.display = 'block';
+                feedbackSection.style.display = 'none'; // Hide feedback form during loading
+                loader.textContent = 'Validating feedback...';
+
+                const validationPrompt = `
+                    You are a validation AI specializing in corporate hierarchies. Your task is to validate user feedback against a corporate hierarchy for the entity "${entityName}" located in "${entityLocation}", with the ultimate parent company "${l0CompanyName}". The feedback may suggest adding new entities, removing existing ones, correcting the L0 parent, or updating the location (address) of entities at any level.
+
+                    ### HIERARCHY DATA:
+                    ${JSON.stringify(hierarchyData)}
+
+                    ### USER FEEDBACK:
+                    ${feedback}
+
+                    ### VALIDATION RULES:
+                    1. **Relevance**:
+                       - The feedback must relate to the corporate hierarchy of "${l0CompanyName}" or propose a correction to the L0 parent if the user explicitly intends to override the default L0.
+                       - Feedback requesting entities in other regions (e.g., Spain) is valid if it can be integrated under the hierarchy.
+                       - Feedback correcting the L0 parent (e.g., "Set Vallen Distribution Inc as its own L0 company" or "Set L0 to Nautic Partners") is valid if the user explicitly specifies the new L0, regardless of plausibility, as an override.
+                       - Feedback updating the location of an entity (e.g., "Change the location of Graybar Electric (L1) to Clayton, MO") is valid if the new location is provided.
+                    2. **Plausibility**:
+                       - Suggested changes must be structurally consistent with corporate hierarchies (e.g., L0 > L1 > L2 > L3 > L4).
+                       - For L0 corrections, accept the user-specified L0 as valid if explicitly stated (e.g., "Set L0 to Nautic Partners"), treating it as an intentional override rather than requiring plausibility based on general knowledge.
+                       - For location updates, ensure the new location is plausible for the entity’s region (e.g., moving Graybar’s L1 to Clayton, MO is reasonable, but moving it to Tokyo, Japan requires justification unless specified).
+                    3. **Specificity**:
+                       - Feedback can be specific (e.g., "Add Jio Platforms in Mumbai as L3 under XYZ") or broad (e.g., "Add all Amazon companies in Spain"). For broad feedback:
+                         - Validate if the intent is clear and feasible (e.g., adding region-specific entities under "${l0CompanyName}").
+                         - Do not reject broad feedback unless it’s unrelated (e.g., "Add Google LLC").
+                       - Feedback correcting the L0 parent must clearly state the desired L0 (e.g., "Set L0 to Nautic Partners").
+                       - Feedback updating a location must specify the entity, its level (if ambiguous), and the new location.
+                    4. **Consistency**:
+                       - Ensure no contradictory relationships (e.g., L4 as parent of L2).
+                       - For location updates, ensure the new location aligns with the hierarchy (e.g., an L4 entity's location should be consistent with its L3 parent's region).
+                    5. **Entity Clarification**:
+                       - For ambiguous entities (e.g., "Jio"), use context from "${entityName}" and "${l0CompanyName}" to infer intent (e.g., a division vs. a store).
+                       - Normalize entity names (e.g., "Greybar" should be treated as "Graybar Electric Company").
+
+                    ### OUTPUT INSTRUCTIONS:
+                    - Return a JSON object with:
+                      - "isValid": boolean (true if feedback is relevant and structurally feasible, false otherwise).
+                      - "message": A string explaining why feedback is invalid (if false, with guidance for correction) or confirming intent (if true, e.g., "Feedback is valid and will set L0 to the specified parent.").
+                    - Do not modify the hierarchy.
+                    - Do not output other text.
+
+                    ### EXAMPLES:
+                    - Feedback: "Add Jio Platforms in Mumbai as L3 under Reliance Jio Infocomm Limited"
+                      Output: { "isValid": true, "message": "Feedback is valid and suggests a specific addition." }
+                    - Feedback: "Add all Amazon companies in Spain"
+                      Output: { "isValid": true, "message": "Feedback is valid and will infer entities for Spain under Amazon, Inc." }
+                    - Feedback: "Set L0 to Nautic Partners"
+                      Output: { "isValid": true, "message": "Feedback is valid and will set L0 to the specified parent Nautic Partners." }
+                    - Feedback: "Change the location of Graybar Electric (L1) to Clayton, MO"
+                      Output: { "isValid": true, "message": "Feedback is valid and will update the location of Graybar Electric (L1) to Clayton, MO." }
+                    - Feedback: "Add Google as L0"
+                      Output: { "isValid": false, "message": "Feedback is invalid: Google is unrelated to ${l0CompanyName}. To correct the L0 parent, please specify a related entity, e.g., 'Set L0 to Nautic Partners'." }
+                    - Feedback: "Add more companies"
+                      Output: { "isValid": false, "message": "Feedback is too vague: please specify a company or region." }
+                    - Feedback: "Change the location of Graybar Electric (L1) to Tokyo, Japan"
+                      Output: { "isValid": false, "message": "Feedback is invalid: The location Tokyo, Japan is implausible for Graybar Electric (L1), which is based in the U.S. Please provide a more plausible location or additional context." }
+                `;
+                console.log('Submitting feedback for validation:', { feedback, hierarchyData });
+                const validationResult = await makeApiCall(validationPrompt);
+                console.log('Validation result:', validationResult);
+                loader.style.display = 'none';
+                feedbackSection.style.display = 'block'; // Show feedback form after loading
+
+                if (!validationResult) {
+                    throw new Error("Failed to validate feedback.");
+                }
+
+                if (!validationResult.isValid) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'error-message';
+                    errorDiv.innerHTML = `<strong>Invalid Feedback:</strong> No changes were applied to the hierarchy because: ${validationResult.message}<button class="dismiss-btn" onclick="this.parentElement.remove()">✕</button>`;
+                    Array.from(messageContainers).forEach(container => container.appendChild(errorDiv.cloneNode(true)));
+                    renderGroupedTable(tableContainer);
+                    renderTree(hierarchyData, treeContent);
+                    approveBtn.style.display = 'inline-block'; // Keep approve button visible on invalid feedback
+                    if (tableViewBtn.classList.contains('active')) {
+                        resultsDiv.style.display = 'block';
+                        treeDiv.style.display = 'none';
+                    } else {
+                        resultsDiv.style.display = 'none';
+                        treeDiv.style.display = 'block';
+                    }
+                    console.log('Invalid feedback, showing error and preserving hierarchy:', { message: validationResult.message, hierarchyData, feedbackChanges });
+                    (resultsDiv.style.display !== 'none' ? resultsDiv : treeDiv).scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    return;
+                }
+
+                loader.style.display = 'block';
+                feedbackSection.style.display = 'none'; // Hide feedback form during loading
+                loader.textContent = 'Processing feedback...';
+                
+                const updatePrompt = `
+                    You are a hierarchy update specialist. Your task is to process valid user feedback for the corporate hierarchy of "${entityName}" located in "${entityLocation}", with ultimate parent "${l0CompanyName}". The feedback may involve adding new entities, removing existing ones, correcting the L0 parent, or updating the location of entities at any level.
+
+                    ### HIERARCHY DATA:
+                    ${JSON.stringify(hierarchyData)}
+
+                    ### VALID USER FEEDBACK:
+                    ${feedback}
+
+                    ### PROCESSING RULES:
+                    1. **Identify Additions**:
+                       - For specific feedback (e.g., "Add Jio Platforms in Mumbai as L3 under XYZ"), include the entity with given level, location, mappedParent.
+                       - For broad feedback (e.g., "Add all Amazon companies in Spain"):
+                         - Infer specific entities (e.g., Amazon Spain Services S.A.) under "${l0CompanyName}" (e.g., Amazon, Inc.).
+                         - Assign appropriate levels (L2-L4) and locations (e.g., Madrid, Barcelona).
+                         - Perform a "deep dive" to include children (down to L4) and siblings for inferred entities, especially in the specified region (e.g., Spain).
+                       - Ensure entities align with "${l0CompanyName}"’s global structure.
+                    2. **Identify Removals**:
+                       - For feedback like "Remove Reliance Jio Store - Mumbai", mark matching entities in the hierarchy (format: "entityName|location|level").
+                       - Only mark existing entities.
+                    3. **Handle L0 Corrections**:
+                       - If the feedback corrects the L0 parent (e.g., "Set L0 to Nautic Partners"):
+                         - Mark all existing entities in the hierarchy for removal (as the entire hierarchy will be regenerated under the new L0).
+                         - Add a new L0 entity (e.g., { "level": "L0", "entityName": "Nautic Partners", "location": "Global", "mappedParent": "N/A" }).
+                         - Indicate that the hierarchy needs regeneration under the new L0 by setting "regenerateHierarchy": true and "newL0": the user-specified L0.
+                    4. **Handle Location Updates**:
+                       - For feedback like "Change the location of Graybar Electric (L1) to Clayton, MO":
+                         - Identify the entity in the hierarchy (e.g., "Graybar Electric" at L1).
+                         - Update its location to the new value (e.g., "Clayton, MO").
+                         - Return the updated entity under "updated" with the new location.
+                         - If the entity is not found, return an empty "updated" array.
+                    5. **Hierarchy Integrity**:
+                       - Ensure added entities follow L0 > L1 > L2 > L3 > L4. No invalid relationships.
+                       - For location updates, ensure the new location aligns with the hierarchy (e.g., an L4 entity's location should be consistent with its L3 parent's region).
+                    6. **Entity Clarification**:
+                       - For ambiguous terms, use context from "${entityName}" and "${l0CompanyName}" (e.g., "Amazon" refers to a division under Amazon, Inc.).
+                       - Normalize entity names (e.g., "Greybar" as "Graybar Electric Company").
+                    7. **Preserve Highlight**:
+                       - Retain "highlight: true" for "${entityName}" in "${entityLocation}" unless the feedback explicitly modifies this entity.
+
+                    ### OUTPUT INSTRUCTIONS:
+                    - Return a JSON object with:
+                        - "added": Array of new entities with "level", "entityName", "location", "mappedParent", optional "highlight".
+                        - "removed": Array of entity keys ("entityName|location|level") for entities to mark for removal.
+                        - "updated": Array of entities with updated locations (same format as hierarchy entities).
+                        - "regenerateHierarchy": Boolean (true if the L0 parent is corrected and the hierarchy needs regeneration, false otherwise).
+                        - "newL0": String (the new L0 parent company name if regenerateHierarchy is true, otherwise empty string "").
+                      - Do not modify the hierarchy directly.
+                      - Include as many entities as possible for the specified region, e.g., Spain.
+                      - No other text.
+
+                    ### EXAMPLES:
+                    - Feedback: "Add Jio Platforms in Mumbai as L3 under Reliance Jio Infocomm Limited"
+                      Output: {
+                        "added": [
+                          { "level": "L3", "entityName": "Jio Platforms", "location": "Mumbai, India", "mappedParent": "Reliance Jio Infocomm Limited (L1)" },
+                          { "level": "L4", "entityName": "Jio Store - Andheri", "location": "Mumbai, India", "mappedParent": "Jio Platforms (L3)" }
+                        ],
+                        "removed": [],
+                        "updated": [],
+                        "regenerateHierarchy": false,
+                        "newL0": ""
+                      }
+                    - Feedback: "Add all Amazon companies in Spain"
+                      Output: {
+                        "added": [
+                          { "level": "L2", "entityName": "Amazon Spain Services S.A.", "location": "Madrid, Spain", "mappedParent": "Amazon, Inc. (L1)" },
+                          { "level": "L3", "entityName": "Amazon Fulfillment Center - Madrid", "location": "Madrid, Spain", "mappedParent": "Amazon Spain Services S.A. (L2)" },
+                          { "level": "L3", "entityName": "Amazon Web Services Spain S.L.", "location": "Barcelona, Spain", "mappedParent": "Amazon Spain Services S.A. (L2)" },
+                          { "level": "L4", "entityName": "Amazon Data Center - Aragon", "location": "Zaragoza, Spain", "mappedParent": "Amazon Web Services Spain S.L. (L3)" }
+                        ],
+                        "removed": [],
+                        "updated": [],
+                        "regenerateHierarchy": false,
+                        "newL0": ""
+                      }
+                    - Feedback: "Set L0 to Nautic Partners"
+                      Output: {
+                        "added": [
+                          { "level": "L0", "entityName": "Nautic Partners", "location": "Global", "mappedParent": "N/A" }
+                        ],
+                        "removed": ${JSON.stringify(hierarchyData.map(item => `${item.entityName}|${item.location}|${item.level}`))},
+                        "updated": [],
+                        "regenerateHierarchy": true,
+                        "newL0": "Nautic Partners"
+                      }
+                    - Feedback: "Remove Reliance Jio Store - Mumbai"
+                      Output: {
+                        "added": [],
+                        "removed": ["Reliance Jio Store - Mumbai|Mumbai, India|L4"],
+                        "updated": [],
+                        "regenerateHierarchy": false,
+                        "newL0": ""
+                      }
+                    - Feedback: "Change the location of Graybar Electric (L1) to Clayton, MO"
+                      Output: {
+                        "added": [],
+                        "removed": [],
+                        "updated": [
+                          { "level": "L1", "entityName": "Graybar Electric", "location": "Clayton, MO", "mappedParent": "Graybar Electric Company (L0)", "highlight": true }
+                        ],
+                        "regenerateHierarchy": false,
+                        "newL0": ""
+                      }
+                `;
+                console.log('Processing valid feedback:', { feedback, hierarchyData });
+                const feedbackResult = await makeApiCall(updatePrompt);
+                console.log('Feedback processing result:', feedbackResult);
+                loader.style.display = 'none';
+                feedbackSection.style.display = 'block'; // Show feedback form after loading
+
+                if (!feedbackResult || !Array.isArray(feedbackResult.added) || !Array.isArray(feedbackResult.removed) || !Array.isArray(feedbackResult.updated)) {
+                    throw new Error("Failed to process feedback: Invalid response format.");
+                }
+
+                // Handle feedback result
+                if (feedbackResult.regenerateHierarchy && feedbackResult.newL0) {
+                    // L0 correction: Regenerate the hierarchy under the new L0
+                    l0CompanyName = feedbackResult.newL0;
+                    loader.style.display = 'block';
+                    feedbackSection.style.display = 'none';
+                    loader.textContent = 'Regenerating hierarchy with corrected L0 parent...';
+
+                    const newHierarchyPrompt = `
+                        You are a world-class business analyst AI. Your primary function is to meticulously map the complete corporate structure of a given company. Your results MUST be maximally comprehensive and granular.
+
+                        ### HIERARCHY DEFINITIONS (Strict)
+                        - **L0 (Company):** The top‐level brand or group name.
+                        - **L1 (Global):** The ultimate parent company, a major international joint venture, or a distinct global brand/division.
+                        - **L2 (Domestic):** The highest-level legal entity within one country or a major region.
+                        - **L3 (Parent):** A regional/functional head office, a specific manufacturing plant, or a major subsidiary.
+                        - **L4 (Child / Leaf Node):** The most granular level. This includes specific local branches, operational units, sales offices, R&D centers, or even uniquely identified sites (e.g., "Amazon Fulfillment Center - Madrid").
+
+                        ### HIERARCHY GENERATION RULES
+                        1. For every single entity at levels L1, L2, and L3, perform an exhaustive search for its children.
+                        2. For each L3 entity, perform a "deep dive" search for its L4 children (operational units, local branches, specific sites), limiting to 10 per L3.
+                        3. The parent-child relationships must be strictly sequential: L0 > L1 > L2 > L3 > L4.
+
+                        ### YOUR TASK
+                        For the company "${l0CompanyName}", generate the most comprehensive hierarchy possible by applying the above rules.
+                        
+                        ### OUTPUT INSTRUCTIONS
+                        Return a single JSON Array. Each object must have these keys: "level", "entityName", "location", "mappedParent". Do not output any other text.
+                    `;
+                    const newHierarchyData = await makeApiCall(newHierarchyPrompt);
+                    loader.style.display = 'none';
+                    feedbackSection.style.display = 'block';
+
+                    if (!newHierarchyData) {
+                        throw new Error("Failed to regenerate hierarchy with corrected L0 parent.");
+                    }
+
+                    // Highlight the target entity in the new hierarchy
+                    const highlightPrompt = `
+                        Given the hierarchy below, find the object that most closely matches the target entity "${entityName}" located in "${entityLocation}". Add a key-value pair "highlight": true to that object. If the target entity is not found, add it with appropriate level and parent, and set "highlight": true.
+
+                        ### HIERARCHY DATA:
+                        ${JSON.stringify(newHierarchyData)}
+
+                        Return the modified JSON array.
+                    `;
+                    const highlightedHierarchy = await makeApiCall(highlightPrompt);
+                    if (!highlightedHierarchy) {
+                        throw new Error("Failed to highlight target entity in new hierarchy.");
+                    }
+
+                    hierarchyData = highlightedHierarchy;
+                    feedbackChanges = { added: [], removed: [] };
+                    displaySuccess(`L0 parent corrected to ${l0CompanyName}. Hierarchy has been regenerated.`);
+                    approveBtn.style.display = 'inline-block'; // Show approve button after regeneration
+                } else {
+                    // Preview changes: Update feedbackChanges for rendering, but don't modify hierarchyData yet
+                    feedbackChanges.added = [...feedbackChanges.added, ...feedbackResult.added];
+                    feedbackChanges.removed = [...feedbackChanges.removed, ...feedbackResult.removed];
+
+                    // Apply location updates directly to hierarchyData since they don't require approval
+                    feedbackResult.updated.forEach(updatedEntity => {
+                        const entityKey = `${updatedEntity.entityName}|${updatedEntity.level}`;
+                        const index = hierarchyData.findIndex(item => `${item.entityName}|${item.level}` === entityKey);
+                        if (index !== -1) {
+                            hierarchyData[index] = { ...hierarchyData[index], location: updatedEntity.location };
+                        }
+                    });
+
+                    displaySuccess(`Feedback processed. Additions and removals are previewed in the hierarchy. Click "Approve" to apply these changes.`);
+                    approveBtn.style.display = 'inline-block'; // Show approve button for previewed changes
+                }
+
+                console.log('Rendering UI with feedback changes preview:', { hierarchyData, feedbackChanges });
+                renderGroupedTable(tableContainer);
+                renderTree(hierarchyData, treeContent);
+                viewToggle.style.display = 'flex';
+                if (tableViewBtn.classList.contains('active')) {
+                    resultsDiv.style.display = 'block';
+                    treeDiv.style.display = 'none';
+                } else {
+                    resultsDiv.style.display = 'none';
+                    treeDiv.style.display = 'block';
+                }
+                (resultsDiv.style.display !== 'none' ? resultsDiv : treeDiv).scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (error) {
+                console.error("Error in handleFeedback:", error);
+                displayError(`Failed to process feedback: ${error.message}`, error);
+                const tableContainer = document.getElementById('tableContainer');
+                const treeContent = document.getElementById('treeContent');
+                const resultsDiv = document.getElementById('results');
+                const treeDiv = document.getElementById('tree-container');
+                const tableViewBtn = document.getElementById('tableViewBtn');
+                const approveBtn = document.getElementById('approveBtn');
+                renderGroupedTable(tableContainer);
+                renderTree(hierarchyData, treeContent);
+                approveBtn.style.display = 'inline-block'; // Keep approve button visible on error
+                if (tableViewBtn.classList.contains('active')) {
+                    resultsDiv.style.display = 'block';
+                    treeDiv.style.display = 'none';
+                } else {
+                    resultsDiv.style.display = 'none';
+                    treeDiv.style.display = 'block';
+                }
+            }
+        }
+
+        function downloadJson() {
+            try {
+                if (!hierarchyData || hierarchyData.length === 0) {
+                    throw new Error("No data available to download.");
+                }
+
+                console.log('Preparing JSON download for hierarchy data:', hierarchyData);
+                const entityName = document.getElementById('entityName').value || 'hierarchy';
+                const jsonContent = JSON.stringify(hierarchyData, null, 2);
+                const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", `${entityName.replace(/\s+/g, '_')}_hierarchy.json`);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (error) {
+                console.error("Error in downloadJson:", error);
+                displayError(`Failed to download JSON: ${error.message}`);
+            }
+        }
+
+        async function handleApprove() {
+            const feedbackSection = document.getElementById('feedback-section');
+            const resultsDiv = document.getElementById('results');
+            const messageContainers = document.getElementsByClassName('messageContainer');
+            const tableContainer = document.getElementById('tableContainer');
+            const treeDiv = document.getElementById('tree-container');
+            const treeContent = document.getElementById('treeContent');
+            const tableViewBtn = document.getElementById('tableViewBtn');
+            const approveBtn = document.getElementById('approveBtn');
+            const entityName = document.getElementById('entityName').value || 'Unknown Company';
+            const entityLocation = document.getElementById('entityLocation').value || 'Unknown Location';
+            const userFeedback = document.getElementById('feedbackInput').value.trim();
+            // Show loading state
+            const originalBtnText = approveBtn.innerHTML;
+            approveBtn.disabled = true;
+            approveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+
+            try {
+                // Clear previous messages and content
+                Array.from(messageContainers).forEach(container => container.innerHTML = '');
+                tableContainer.innerHTML = '';
+                treeContent.innerHTML = '';
+
+                // Apply feedback changes to hierarchyData
+                const removedSet = new Set(feedbackChanges.removed);
+                hierarchyData = [
+                    ...hierarchyData.filter(item => !removedSet.has(`${item.entityName}|${item.location}|${item.level}`)),
+                    ...feedbackChanges.added
+                ].sort((a, b) => {
+                    const levelA = parseInt(a.level.substring(1));
+                    const levelB = parseInt(b.level.substring(1));
+                    if (levelA !== levelB) return levelA - levelB;
+                    return a.entityName.localeCompare(b.entityName);
+                });
+
+                // Prepare the data to send
+                const requestData = {
+                    userInput: {
+                        company: entityName,
+                        location: entityLocation
+                    },
+                    version: 'v0',
+                    data: hierarchyData,
+                    userFeedback: userFeedback,
+                    status: 'approved'
+                };
+
+                // Log the data being sent
+                console.log('Sending hierarchy data:', JSON.parse(JSON.stringify(requestData, (key, value) => {
+                    // Clean up the data by removing any undefined values
+                    return value === undefined ? null : value;
+                })));
+
+                // Save to backend
+                const response = await fetch('http://localhost:3000/api/hierarchies', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData, (key, value) => {
+                        // Handle any circular references or undefined values
+                        return value === undefined ? null : value;
+                    })
+                });
+
+                if (!response.ok) {
+                    let errorMessage = `HTTP error! status: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || JSON.stringify(errorData) || errorMessage;
+                    } catch (e) {
+                        // If we can't parse JSON, use the status text
+                        errorMessage = response.statusText || errorMessage;
+                    }
+                    throw new Error(`Failed to save to backend: ${errorMessage}`);
+                }
+
+                const result = await response.json();
+                console.log('Successfully saved hierarchy:', result);
+
+                // Reset feedback changes
+                feedbackChanges = { added: [], removed: [] };
+
+                // Re-render UI with updated data
+                renderGroupedTable(tableContainer);
+                renderTree(hierarchyData, treeContent);
+
+                // Hide feedback section and approve button
+                feedbackSection.style.display = 'none';
+                approveBtn.style.display = 'none';
+
+                // Adjust visibility based on active view
+                if (tableViewBtn.classList.contains('active')) {
+                    resultsDiv.style.display = 'block';
+                    treeDiv.style.display = 'none';
+                } else {
+                    resultsDiv.style.display = 'none';
+                    treeDiv.style.display = 'block';
+                }
+
+                // Show success message
+                displaySuccess('Changes have been approved and saved successfully!');
+
+                // Download JSON
+                downloadJson();
+            } catch (error) {
+                console.error('Error in handleApprove:', error);
+                displayError(`Failed to approve hierarchy: ${error.message}`, error);
+            } finally {
+                // Restore button state
+                approveBtn.disabled = false;
+                approveBtn.innerHTML = originalBtnText;
+            }
+        }
+        
+        function renderGroupedTable(targetElement) {
+            console.log('Rendering table for:', targetElement.id, 'with hierarchyData:', hierarchyData, 'feedbackChanges:', feedbackChanges);
+            targetElement.innerHTML = ''; // Clear only the table container, not the message container
+            try {
+                if (!Array.isArray(hierarchyData) || hierarchyData.length === 0) { 
+                    targetElement.innerHTML = "<p>No hierarchy data returned.</p>";
+                    console.log('No data to render in table');
+                    return; 
+                }
+                
+                const table = document.createElement('table');
+                const thead = document.createElement('thead');
+                const tbody = document.createElement('tbody');
+                const headerRow = document.createElement('tr');
+                
+                const headers = ["Level", "Entity Name", "Location", "Mapped Parent"];
+                const keys = ["level", "entityName", "location", "mappedParent"];
+
+                headers.forEach(headerText => {
+                    const th = document.createElement('th');
+                    th.textContent = headerText;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                
+                // Combine hierarchyData and feedbackChanges.added for rendering
+                const allEntities = [...hierarchyData, ...feedbackChanges.added];
+                const removedSet = new Set(feedbackChanges.removed);
+
+                // Sort entities
+                allEntities.sort((a, b) => {
+                    const levelA = parseInt(a.level.substring(1));
+                    const levelB = parseInt(b.level.substring(1));
+                    if (levelA !== levelB) {
+                        return levelA - levelB;
+                    }
+                    return a.entityName.localeCompare(b.entityName);
+                });
+
+                allEntities.forEach(rowData => {
+                    const tr = document.createElement('tr');
+                    const entityKey = `${rowData.entityName}|${rowData.location}|${rowData.level}`;
+                    if (rowData.highlight) {
+                        tr.classList.add('highlighted-row');
+                    }
+                    if (feedbackChanges.added.some(item => `${item.entityName}|${item.location}|${item.level}` === entityKey)) {
+                        tr.classList.add('added-row');
+                    }
+                    if (removedSet.has(entityKey)) {
+                        tr.classList.add('removed-row');
+                    }
+                    keys.forEach(key => {
+                        const td = document.createElement('td');
+                        td.textContent = rowData[key] || '';
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+
+                table.appendChild(tbody);
+                targetElement.appendChild(table);
+                console.log('Table rendered successfully for:', targetElement.id);
+            } catch (e) {
+                console.error("Rendering Error in renderGroupedTable:", e);
+                displayError(`Could not render table: ${e.message}`, e);
+            }
+        }
+
+        function renderTree(data, targetElement) {
+            console.log('Rendering tree for:', targetElement.id, 'with data:', data, 'feedbackChanges:', feedbackChanges);
+            targetElement.innerHTML = ''; // Clear only the tree content, not the entire tree-container
+            try {
+                if (!Array.isArray(data) || data.length === 0) {
+                    console.log('No data to render in tree');
+                    return;
+                }
+
+                // Combine hierarchyData and feedbackChanges.added for rendering
+                const allEntities = [...data, ...feedbackChanges.added];
+                const removedSet = new Set(feedbackChanges.removed);
+
+                // Sort entities by level and entityName
+                allEntities.sort((a, b) => {
+                    const levelA = parseInt(a.level.substring(1));
+                    const levelB = parseInt(b.level.substring(1));
+                    if (levelA !== levelB) return levelA - levelB;
+                    return a.entityName.localeCompare(b.entityName);
+                });
+
+                const dataMap = new Map();
+                allEntities.forEach(item => {
+                    const entityString = `${item.entityName} (${item.level})`;
+                    dataMap.set(entityString, { ...item, children: [] });
+                });
+
+                const treeRoots = [];
+                dataMap.forEach(item => {
+                    const parentString = item.mappedParent;
+                    if (parentString && parentString !== "N/A" && dataMap.has(parentString)) {
+                        dataMap.get(parentString).children.push(item);
+                    } else {
+                        treeRoots.push(item);
+                    }
+                });
+
+                treeRoots.sort((a, b) => a.level.localeCompare(b.level, undefined, { numeric: true }));
+
+                function createTreeHtml(nodes) {
+                    if (!nodes || nodes.length === 0) return '';
+                    let html = '<ul>';
+                    nodes.sort((a, b) => a.entityName.localeCompare(b.entityName)).forEach(node => {
+                        html += '<li>';
+                        const entityKey = `${node.entityName}|${node.location}|${node.level}`;
+                        let nodeClasses = 'tree-node';
+                        if (node.highlight) {
+                            nodeClasses += ' highlighted-node';
+                        }
+                        if (feedbackChanges.added.some(item => `${item.entityName}|${item.location}|${item.level}` === entityKey)) {
+                            nodeClasses += ' added-node';
+                        }
+                        if (removedSet.has(entityKey)) {
+                            nodeClasses += ' removed-node';
+                        }
+                        html += `<div class="${nodeClasses}">`;
+                        html += `<strong>${node.entityName}</strong><span class="badge">${node.level}</span>`;
+                        html += `<span class="tree-location">${node.location}</span>`;
+                        html += `</div>`;
+                        if (node.children && node.children.length > 0) {
+                            html += createTreeHtml(node.children);
+                        }
+                        html += '</li>';
+                    });
+                    html += '</ul>';
+                    return html;
+                }
+                targetElement.innerHTML = createTreeHtml(treeRoots);
+                console.log('Tree rendered successfully for:', targetElement.id);
+            } catch (e) {
+                console.error("Rendering Error in renderTree:", e);
+                displayError(`Could not render tree: ${e.message}`, e);
+            }
+        }
+
+        function escapeCsvCell(cell) {
+            if (cell == null) {
+                return '';
+            }
+            const strCell = String(cell);
+            if (strCell.includes(',') || strCell.includes('"') || strCell.includes('\n')) {
+                return `"${strCell.replace(/"/g, '""')}"`;
+            }
+            return strCell;
+        }
+
+        function downloadCSV() {
+            try {
+                if (hierarchyData.length === 0) {
+                    throw new Error("No data available to download.");
+                }
+
+                const headers = ["Level", "Entity Name", "Location", "Mapped Parent", "Is Highlighted"];
+                const keys = ["level", "entityName", "location", "mappedParent"];
+
+                const sortedData = [...hierarchyData].sort((a, b) => {
+                    const levelA = parseInt(a.level.substring(1));
+                    const levelB = parseInt(b.level.substring(1));
+                    if (levelA !== levelB) return levelA - levelB;
+                    return a.entityName.localeCompare(b.entityName);
+                });
+                
+                const csvRows = [
+                    headers.join(','), 
+                    ...sortedData.map(row => {
+                        const values = keys.map(key => escapeCsvCell(row[key]));
+                        values.push(row.highlight ? 'Yes' : 'No');
+                        return values.join(',');
+                    })
+                ];
+
+                const csvContent = csvRows.join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+
+                const fileName = `${entityName.replace(/\s+/g, '_')}_hierarchy.csv`;
+                link.setAttribute("download", fileName);
+                
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);  
+            } catch (error) {
+                console.error("Error in downloadCSV:", error);
+                displayError(`Failed to download CSV: ${error.message}`, error);
+            }
+        }
+
+    </script>
+</body>
+</html>
